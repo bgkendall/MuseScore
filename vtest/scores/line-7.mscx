@@ -220,7 +220,7 @@
               </Note>
             </Chord>
           <StaffText>
-            <text>none-90°T</text>
+            <text>none-arrow</text>
             </StaffText>
           <Spanner type="Pedal">
             <prev>
@@ -353,7 +353,7 @@
       <Measure>
         <voice>
           <StaffText>
-            <text>90°T-none</text>
+            <text>arrow-none</text>
             </StaffText>
           <Spanner type="Pedal">
             <prev>
