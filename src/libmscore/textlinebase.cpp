@@ -164,8 +164,15 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
         if (tl->beginHookType() == HookType::HOOK_90T) {
             painter->drawLines(&points[0], 1);
             start++;
+        } else if (tl->beginHookType() == HookType::ARROW_OPEN) {
+            painter->drawLines(&points[0], 1);
+            start++;
         }
+
         if (tl->endHookType() == HookType::HOOK_90T) {
+            painter->drawLines(&points[npoints - 1], 1);
+            end--;
+        } else if (tl->endHookType() == HookType::ARROW_OPEN) {
             painter->drawLines(&points[npoints - 1], 1);
             end--;
         }
@@ -424,6 +431,8 @@ void TextLineBaseSegment::layout()
             qreal hh = tl->beginHookHeight().val() * _spatium;
             if (tl->beginHookType() == HookType::HOOK_90T) {
                 points[npoints++] = QPointF(pp1.x() - beginHookWidth, pp1.y() - hh);
+            } else if (tl->beginHookType() == HookType::ARROW_OPEN) {
+                points[npoints++] = QPointF(pp1.x() - beginHookWidth, pp1.y() - hh);
             }
             points[npoints] = QPointF(pp1.x() - beginHookWidth, pp1.y() + hh);
             ++npoints;
@@ -442,6 +451,8 @@ void TextLineBaseSegment::layout()
                 // painter->drawLine(QLineF(pp2.x(), pp2.y(), pp2.x() + endHookWidth, pp2.y() + hh));
                 points[npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() + hh);
                 if (tl->endHookType() == HookType::HOOK_90T) {
+                    points[++npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() - hh);
+                } else if (tl->endHookType() == HookType::ARROW_OPEN) {
                     points[++npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() - hh);
                 }
             }
