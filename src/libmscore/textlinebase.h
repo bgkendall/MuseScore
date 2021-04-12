@@ -32,7 +32,7 @@ class TextLineBaseSegment : public LineSegment
 protected:
     Text* _text;
     Text* _endText;
-    QPointF points[6];
+    QPointF points[8];
     int npoints;
     qreal lineLength;
     bool twoLines { false };
@@ -62,7 +62,7 @@ public:
 //---------------------------------------------------------
 
 enum class HookType : char {
-    NONE, HOOK_90, HOOK_45, HOOK_90T, ARROW_OPEN
+    NONE, HOOK_90, HOOK_45, ARROW_OPEN, HOOK_90T // Swap order for testing.
 };
 
 //---------------------------------------------------------
