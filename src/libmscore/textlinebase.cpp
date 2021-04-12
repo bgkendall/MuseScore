@@ -35,6 +35,8 @@
 #include "mscore.h"
 #include "staff.h"
 
+#include "log.h"
+
 namespace Ms {
 //---------------------------------------------------------
 //   TextLineBaseSegment
@@ -84,6 +86,8 @@ void TextLineBaseSegment::setSelected(bool f)
 
 void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
 {
+    LOGI() << "====== Entered draw(" << textLineBase()->continueText() << ")! ======";
+
     TRACE_OBJ_DRAW;
     TextLineBase* tl   = textLineBase();
 
@@ -121,7 +125,7 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
         textlineLineWidth *= mag();
     }
     QPen pen(color, textlineLineWidth, tl->lineStyle());
-    QPen solidPen(color, textlineLineWidth, Qt::SolidLine);
+    QPen solidPen(color, textlineLineWidth, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin);
 
     //Replace generic Qt dash patterns with improved equivalents to show true dots
     QVector<qreal> dotted        = { 0.01, 1.99 };   // 0.01 for cap dots. tighter than default Qt Dotline (would be { 0.01, 2.99 }).
@@ -156,25 +160,29 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
         painter->setPen(pen);
         painter->drawLines(&points[0], 1);
         painter->drawLines(&points[2], 1);
+
+        LOGI() << points[0].x() << "," << points[0].y() << " -> " << points[1].x() << "," << points[1].y();
+        LOGI() << points[2].x() << "," << points[2].y() << " -> " << points[3].x() << "," << points[3].y();
+
     } else {
         int start = 0;
         int end = npoints;
-        //draw centered hooks as solid
+        //draw centered hooks and arrows as solid
         painter->setPen(solidPen);
         if (tl->beginHookType() == HookType::HOOK_90T) {
             painter->drawLines(&points[0], 1);
             start++;
         } else if (tl->beginHookType() == HookType::ARROW_OPEN) {
-            painter->drawLines(&points[0], 1);
-            start++;
+            painter->drawPolyline(&points[0], 3);
+            start += 3;
         }
 
         if (tl->endHookType() == HookType::HOOK_90T) {
             painter->drawLines(&points[npoints - 1], 1);
             end--;
         } else if (tl->endHookType() == HookType::ARROW_OPEN) {
-            painter->drawLines(&points[npoints - 1], 1);
-            end--;
+            painter->drawPolyline(&points[npoints - 2], 3);
+            end -= 3;
         }
         //draw rest of line as regular
         //calculate new gap
@@ -221,6 +229,8 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
 
 Shape TextLineBaseSegment::shape() const
 {
+    LOGI() << "====== Entered shape(" << textLineBase()->continueText() << ")! ======";
+
     Shape shape;
     if (!_text->empty()) {
         shape.add(_text->bbox().translated(_text->pos()));
@@ -267,6 +277,8 @@ bool TextLineBaseSegment::setProperty(Pid id, const QVariant& v)
 
 void TextLineBaseSegment::layout()
 {
+    LOGI() << "====== Entered layout(" << textLineBase()->continueText() << ")! ======";
+
     npoints      = 0;
     TextLineBase* tl = textLineBase();
     qreal _spatium = tl->spatium();
@@ -373,7 +385,18 @@ void TextLineBaseSegment::layout()
         x2 = qMax(x2, _text->width());
     }
 
-    if (textLineBase()->endHookType() != HookType::NONE) {
+    if (textLineBase()->endHookType() == HookType::ARROW_OPEN) {
+        qreal h = textLineBase()->endHookHeight().val() * _spatium;
+        if (h > 0)
+        {
+            if ((pp2.y() + h) > y2) {
+                y2 = (pp2.y() + h);
+            }
+            if ((pp1.y() - h) < y1) {
+                y1 = (pp1.y() - h);
+            }
+        }
+    } else if (textLineBase()->endHookType() != HookType::NONE) {
         qreal h = pp2.y() + textLineBase()->endHookHeight().val() * _spatium;
         if (h > y2) {
             y2 = h;
@@ -382,7 +405,17 @@ void TextLineBaseSegment::layout()
         }
     }
 
-    if (textLineBase()->beginHookType() != HookType::NONE) {
+    if (textLineBase()->beginHookType() == HookType::ARROW_OPEN) {
+        qreal h = textLineBase()->beginHookHeight().val() * _spatium;
+        if (h > 0) {
+            if ((pp2.y() + h) > y2) {
+                y2 = (pp2.y() + h);
+            }
+            if ((pp1.y() - h) < y1) {
+                y1 = (pp1.y() - h);
+            }
+        }
+    } else if (textLineBase()->beginHookType() != HookType::NONE) {
         qreal h = textLineBase()->beginHookHeight().val() * _spatium;
         if (h > y2) {
             y2 = h;
@@ -424,18 +457,64 @@ void TextLineBaseSegment::layout()
             endHookWidth = 0;
         }
 
+        LOGI() << "============ LINE (" << tl->continueText() << ") ============";
+        LOGI() << "\n\t" << pp1.x() << "," << pp1.y() << " -> " << pp2.x() << "," << pp2.y();
+
         // don't draw backwards lines (or hooks) if text is longer than nominal line length
         bool backwards = !_text->empty() && pp1.x() > pp2.x() && !tl->diagonal();
 
         if ((tl->beginHookType() != HookType::NONE) && (isSingleType() || isBeginType())) {
             qreal hh = tl->beginHookHeight().val() * _spatium;
-            if (tl->beginHookType() == HookType::HOOK_90T) {
-                points[npoints++] = QPointF(pp1.x() - beginHookWidth, pp1.y() - hh);
-            } else if (tl->beginHookType() == HookType::ARROW_OPEN) {
-                points[npoints++] = QPointF(pp1.x() - beginHookWidth, pp1.y() - hh);
+            if (tl->beginHookType() == HookType::ARROW_OPEN) {
+                qreal arrowWidth = fabs(hh * 1.618);
+                qreal arrowX0 = pp1.x() - tl->lineWidth();
+                qreal arrowY0 = pp1.y();
+                qreal arrowX1 = arrowWidth;
+                qreal arrowY1 = 0-hh;
+                qreal arrowX2 = arrowWidth;
+                qreal arrowY2 = 0+hh;
+
+                LOGI() << "============ ARROW (" << tl->continueText() << ") ============";
+                LOGI() << "\n\t" << pp1.x() << "," << pp1.y() << " -> " << pp2.x() << "," << pp2.y();
+
+                LOGI() << "\n\tArrow width: " << arrowWidth << '\n'
+                       << "\tX0: " << arrowX0 << " Y0: " << arrowY0 << '\n'
+                       << "\tX1: " << arrowX1 << " Y1: " << arrowY1 << '\n'
+                       << "\tX2: " << arrowX2 << " Y2: " << arrowY2;
+
+                if (tl->diagonal()) {
+                    qreal lineAngle = atan((pp1.y() - pp2.y()) / (pp2.x() - pp1.x()));
+                    arrowX1 = (arrowX1 * cos(lineAngle)) - (arrowY1 * sin(lineAngle));
+                    arrowY1 = (arrowY1 * cos(lineAngle)) + (arrowX1 * sin(lineAngle));
+                    arrowX2 = (arrowX2 * cos(-lineAngle)) - (arrowY2 * sin(-lineAngle));
+                    arrowY2 = (arrowY2 * cos(-lineAngle)) + (arrowX2 * sin(-lineAngle));
+
+                    LOGI() << "\n\tAngle: " << lineAngle << '\n'
+                           << "\tX0: " << arrowX0 << " Y0: " << arrowY0 << '\n'
+                           << "\tX1: " << arrowX1 << " Y1: " << arrowY1 << '\n'
+                           << "\tX2: " << arrowX2 << " Y2: " << arrowY2;
+                }
+
+                arrowX1 += arrowX0;
+                arrowX2 += arrowX0;
+                arrowY1 += arrowY0;
+                arrowY2 += arrowY0;
+
+                LOGI() << "\n\tFinal values:\n"
+                       << "\tX0: " << arrowX0 << " Y0: " << arrowY0 << '\n'
+                       << "\tX1: " << arrowX1 << " Y1: " << arrowY1 << '\n'
+                       << "\tX2: " << arrowX2 << " Y2: " << arrowY2;
+
+                points[npoints++] = QPointF(arrowX1, arrowY1);
+                points[npoints++] = QPointF(arrowX0, arrowY0);
+                points[npoints++] = QPointF(arrowX2, arrowY2);
+            } else {
+                if (tl->beginHookType() == HookType::HOOK_90T) {
+                    points[npoints++] = QPointF(pp1.x() - beginHookWidth, pp1.y() - hh);
+                }
+                points[npoints] = QPointF(pp1.x() - beginHookWidth, pp1.y() + hh);
+                ++npoints;
             }
-            points[npoints] = QPointF(pp1.x() - beginHookWidth, pp1.y() + hh);
-            ++npoints;
             points[npoints] = pp1;
         }
         if (!backwards) {
@@ -446,17 +525,25 @@ void TextLineBaseSegment::layout()
             // painter->drawLine(QLineF(pp1.x(), pp1.y(), pp2.x(), pp2.y()));
 
             if ((tl->endHookType() != HookType::NONE) && (isSingleType() || isEndType())) {
-                ++npoints;
                 qreal hh = tl->endHookHeight().val() * _spatium;
                 // painter->drawLine(QLineF(pp2.x(), pp2.y(), pp2.x() + endHookWidth, pp2.y() + hh));
-                points[npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() + hh);
-                if (tl->endHookType() == HookType::HOOK_90T) {
-                    points[++npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() - hh);
-                } else if (tl->endHookType() == HookType::ARROW_OPEN) {
-                    points[++npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() - hh);
+                if (tl->endHookType() == HookType::ARROW_OPEN) {
+                    points[++npoints] = QPointF(pp2.x() - fabs(hh * 1.618), pp2.y() - hh);
+                    points[++npoints] = QPointF(pp2.x() + tl->lineWidth(), pp2.y());
+                    points[++npoints] = QPointF(pp2.x() - fabs(hh * 1.618), pp2.y() + hh);
+                } else {
+                    points[++npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() + hh);
+                    if (tl->endHookType() == HookType::HOOK_90T) {
+                        points[++npoints] = QPointF(pp2.x() + endHookWidth, pp2.y() - hh);
+                    }
                 }
             }
         }
+    }
+
+    LOGI() << "npoints: " << npoints;
+    for (int i = 0; i <= (twoLines ? 3 : npoints); ++i) {
+        LOGI() << i << ": " << points[i].x() << "," << points[i].y();
     }
 }
 
