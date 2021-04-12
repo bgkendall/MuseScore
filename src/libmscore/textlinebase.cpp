@@ -25,8 +25,6 @@
 #include "mscore.h"
 #include "staff.h"
 
-#include "log.h"
-
 namespace Ms {
 //---------------------------------------------------------
 //   TextLineBaseSegment
@@ -76,8 +74,6 @@ void TextLineBaseSegment::setSelected(bool f)
 
 void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
 {
-    LOGI() << "====== Entered draw(" << textLineBase()->continueText() << ")! ======";
-
     TRACE_OBJ_DRAW;
     TextLineBase* tl   = textLineBase();
 
@@ -150,10 +146,6 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
         painter->setPen(pen);
         painter->drawLines(&points[0], 1);
         painter->drawLines(&points[2], 1);
-
-        LOGI() << points[0].x() << "," << points[0].y() << " -> " << points[1].x() << "," << points[1].y();
-        LOGI() << points[2].x() << "," << points[2].y() << " -> " << points[3].x() << "," << points[3].y();
-
     } else {
         int start = 0;
         int end = npoints;
@@ -166,7 +158,6 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
             painter->drawPolyline(&points[0], 3);
             start += 3;
         }
-
         if (tl->endHookType() == HookType::HOOK_90T) {
             painter->drawLines(&points[npoints - 1], 1);
             end--;
@@ -219,8 +210,6 @@ void TextLineBaseSegment::draw(mu::draw::Painter* painter) const
 
 Shape TextLineBaseSegment::shape() const
 {
-    LOGI() << "====== Entered shape(" << textLineBase()->continueText() << ")! ======";
-
     Shape shape;
     if (!_text->empty()) {
         shape.add(_text->bbox().translated(_text->pos()));
@@ -267,8 +256,6 @@ bool TextLineBaseSegment::setProperty(Pid id, const QVariant& v)
 
 void TextLineBaseSegment::layout()
 {
-    LOGI() << "====== Entered layout(" << textLineBase()->continueText() << ")! ======";
-
     npoints      = 0;
     TextLineBase* tl = textLineBase();
     qreal _spatium = tl->spatium();
@@ -447,9 +434,6 @@ void TextLineBaseSegment::layout()
             endHookWidth = 0;
         }
 
-        LOGI() << "============ LINE (" << tl->continueText() << ") ============";
-        LOGI() << "\n\t" << pp1.x() << "," << pp1.y() << " -> " << pp2.x() << "," << pp2.y();
-
         // don't draw backwards lines (or hooks) if text is longer than nominal line length
         bool backwards = !_text->empty() && pp1.x() > pp2.x() && !tl->diagonal();
 
@@ -464,36 +448,18 @@ void TextLineBaseSegment::layout()
                 qreal arrowX2 = arrowWidth;
                 qreal arrowY2 = 0+hh;
 
-                LOGI() << "============ ARROW (" << tl->continueText() << ") ============";
-                LOGI() << "\n\t" << pp1.x() << "," << pp1.y() << " -> " << pp2.x() << "," << pp2.y();
-
-                LOGI() << "\n\tArrow width: " << arrowWidth << '\n'
-                       << "\tX0: " << arrowX0 << " Y0: " << arrowY0 << '\n'
-                       << "\tX1: " << arrowX1 << " Y1: " << arrowY1 << '\n'
-                       << "\tX2: " << arrowX2 << " Y2: " << arrowY2;
-
                 if (tl->diagonal()) {
                     qreal lineAngle = atan((pp1.y() - pp2.y()) / (pp2.x() - pp1.x()));
                     arrowX1 = (arrowX1 * cos(lineAngle)) - (arrowY1 * sin(lineAngle));
                     arrowY1 = (arrowY1 * cos(lineAngle)) + (arrowX1 * sin(lineAngle));
                     arrowX2 = (arrowX2 * cos(-lineAngle)) - (arrowY2 * sin(-lineAngle));
                     arrowY2 = (arrowY2 * cos(-lineAngle)) + (arrowX2 * sin(-lineAngle));
-
-                    LOGI() << "\n\tAngle: " << lineAngle << '\n'
-                           << "\tX0: " << arrowX0 << " Y0: " << arrowY0 << '\n'
-                           << "\tX1: " << arrowX1 << " Y1: " << arrowY1 << '\n'
-                           << "\tX2: " << arrowX2 << " Y2: " << arrowY2;
                 }
 
                 arrowX1 += arrowX0;
                 arrowX2 += arrowX0;
                 arrowY1 += arrowY0;
                 arrowY2 += arrowY0;
-
-                LOGI() << "\n\tFinal values:\n"
-                       << "\tX0: " << arrowX0 << " Y0: " << arrowY0 << '\n'
-                       << "\tX1: " << arrowX1 << " Y1: " << arrowY1 << '\n'
-                       << "\tX2: " << arrowX2 << " Y2: " << arrowY2;
 
                 points[npoints++] = QPointF(arrowX1, arrowY1);
                 points[npoints++] = QPointF(arrowX0, arrowY0);
@@ -529,11 +495,6 @@ void TextLineBaseSegment::layout()
                 }
             }
         }
-    }
-
-    LOGI() << "npoints: " << npoints;
-    for (int i = 0; i <= (twoLines ? 3 : npoints); ++i) {
-        LOGI() << i << ": " << points[i].x() << "," << points[i].y();
     }
 }
 
