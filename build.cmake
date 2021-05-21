@@ -221,7 +221,7 @@ if(ARG_CONFIGURE AND NOT EXISTS "${BUILD_PATH}/CMakeCache.txt")
     message("CONFIGURE_ARGS: ${ARGS_STR}")
     execute_process(
         # List of CMake arguments in CONFIGURE_ARGS variable. It must be unquoted here.
-        COMMAND "${CMAKE_WRAPPER}" ${CONFIGURE_ARGS} -- "${SOURCE_PATH}"
+        COMMAND "${CMAKE_WRAPPER}" ${CONFIGURE_ARGS} "${SOURCE_PATH}"
         WORKING_DIRECTORY "${BUILD_PATH}"
         RESULT_VARIABLE EXIT_STATUS
     )
